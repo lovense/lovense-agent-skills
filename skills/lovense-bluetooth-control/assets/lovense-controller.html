@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lovense Controller</title>
+  <style>
+    :root {
+      --primary: #e91e8c;
+      --primary-dark: #c4167a;
+      --bg: #0f0f13;
+      --surface: #1a1a24;
+      --surface2: #252535;
+      --text: #eee;
+      --text-dim: #888;
+      --success: #4caf50;
+      --danger: #f44336;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      text-align: center;
+      background: linear-gradient(135deg, var(--primary), #ff6ec7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--danger);
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected {
+      background: var(--success);
+    }
+
+    .status-text {
+      flex: 1;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .battery {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      width: 100%;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), #ff6ec7);
+      color: #fff;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-row button {
+      flex: 1;
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+
+    .slider-label span:last-child {
+      color: var(--primary);
+      font-weight: 700;
+      min-width: 2ch;
+      text-align: right;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--surface2);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+    }
+
+    .log {
+      max-height: 120px;
+      overflow-y: auto;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 10px;
+      line-height: 1.6;
+    }
+
+    .log .ts {
+      color: #666;
+    }
+
+    .log .err {
+      color: var(--danger);
+    }
+
+    .presets {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .presets button {
+      padding: 10px 8px;
+      font-size: 0.8rem;
+      background: var(--surface2);
+      color: var(--text);
+      border-radius: 8px;
+    }
+
+    .presets button:hover {
+      background: var(--primary-dark);
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <h1>Lovense Controller</h1>
+
+    <!-- Connection -->
+    <div class="card">
+      <div class="status-bar" style="margin-bottom:14px">
+        <div class="status-dot" id="statusDot"></div>
+        <div class="status-text" id="statusText">Disconnected</div>
+        <div class="battery" id="batteryText"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="btnScan">Scan</button>
+        <button class="btn-danger" id="btnDisconnect" disabled>Disconnect</button>
+      </div>
+    </div>
+
+    <!-- Vibration Control -->
+    <div class="card" id="controlPanel" style="display:none">
+      <div class="slider-group">
+        <div class="slider-label"><span>Vibration</span><span id="vibVal">0</span></div>
+        <input type="range" id="vibSlider" min="0" max="20" value="0">
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="card" id="presetsPanel" style="display:none">
+      <div class="slider-label" style="margin-bottom:10px"><span>Presets</span></div>
+      <div class="presets">
+        <button onclick="preset('low')">Low</button>
+        <button onclick="preset('medium')">Medium</button>
+        <button onclick="preset('high')">High</button>
+        <button onclick="preset('pulse')">Pulse</button>
+        <button onclick="preset('ramp')">Ramp</button>
+        <button onclick="preset('stop')">Stop</button>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <div class="slider-label" style="margin-bottom:8px"><span>Log</span></div>
+      <div class="log" id="logBox"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── BLE UUIDs ─────────────────────────────────────────
+    // Legacy service (older firmware)
+    const LEGACY_SERVICE = { service: '0000fff0-0000-1000-8000-00805f9b34fb', tx: '0000fff2-0000-1000-8000-00805f9b34fb', rx: '0000fff1-0000-1000-8000-00805f9b34fb' };
+    // Nordic UART Service (some newer devices)
+    const NUS_SERVICE = { service: '6e400001-b5a3-f393-e0a9-e50e24dcca9e', tx: '6e400002-b5a3-f393-e0a9-e50e24dcca9e', rx: '6e400003-b5a3-f393-e0a9-e50e24dcca9e' };
+
+    // Generate device-type services: each Lovense device type (A-Z) uses
+    // {hex(letter)}300001-0023-4bd4-bbd5-a6920e4c5653 as service UUID
+    const SUFFIX = '-0023-4bd4-bbd5-a6920e4c5653';
+    const DEVICE_TYPE_SERVICES = [];
+    for (let code = 0x41; code <= 0x5a; code++) {          // A(0x41) … Z(0x5a)
+      const h = code.toString(16);                          // e.g. '45' for 'E'
+      DEVICE_TYPE_SERVICES.push({
+        service: `${h}300001${SUFFIX}`,
+        tx: `${h}300002${SUFFIX}`,
+        rx: `${h}300003${SUFFIX}`,
+      });
+    }
+
+    const SERVICES = [LEGACY_SERVICE, ...DEVICE_TYPE_SERVICES, NUS_SERVICE];
+    const ALL_SERVICE_UUIDS = SERVICES.map(s => s.service);
+
+    let device = null, server = null, txChar = null, rxChar = null;
+    let connected = false;
+    let patternTimer = null;
+
+    // ── Command Queue (100 ms min interval) ───────────────
+    const cmdQueue = [];
+    let cmdBusy = false;
+    let cmdLastSendTime = 0;
+    const CMD_MIN_INTERVAL = 100; // ms — Lovense devices drop commands sent faster than this
+
+    function enqueueCmd(cmd) {
+      return new Promise((resolve, reject) => {
+        cmdQueue.push({ cmd, resolve, reject });
+        flushQueue();
+      });
+    }
+
+    async function flushQueue() {
+      if (cmdBusy || cmdQueue.length === 0) return;
+      cmdBusy = true;
+      while (cmdQueue.length > 0) {
+        const elapsed = Date.now() - cmdLastSendTime;
+        if (elapsed < CMD_MIN_INTERVAL) {
+          await new Promise(r => setTimeout(r, CMD_MIN_INTERVAL - elapsed));
+        }
+        const { cmd, resolve, reject } = cmdQueue.shift();
+        try {
+          if (txChar) {
+            log(`→ ${cmd}`);
+            await txChar.writeValue(new TextEncoder().encode(cmd));
+            cmdLastSendTime = Date.now();
+          }
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      }
+      cmdBusy = false;
+    }
+
+    // ── Throttle helper ───────────────────────────────────
+    function throttle(fn, ms = CMD_MIN_INTERVAL) {
+      let last = 0, timer = null;
+      return (...args) => {
+        const now = Date.now();
+        clearTimeout(timer);
+        if (now - last >= ms) {
+          last = now;
+          fn(...args);
+        } else {
+          timer = setTimeout(() => { last = Date.now(); fn(...args); }, ms - (now - last));
+        }
+      };
+    }
+
+    // ── DOM refs ──────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const statusDot = $('statusDot');
+    const statusText = $('statusText');
+    const batteryText = $('batteryText');
+    const btnScan = $('btnScan');
+    const btnDisconnect = $('btnDisconnect');
+    const controlPanel = $('controlPanel');
+    const presetsPanel = $('presetsPanel');
+    const vibSlider = $('vibSlider');
+    const vibVal = $('vibVal');
+    const logBox = $('logBox');
+
+    // ── Logging ───────────────────────────────────────────
+    function log(msg, isError = false) {
+      const ts = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      if (isError) div.className = 'err';
+      const span = document.createElement('span');
+      span.className = 'ts';
+      span.textContent = `[${ts}] `;
+      div.appendChild(span);
+      div.appendChild(document.createTextNode(msg));
+      logBox.appendChild(div);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // ── Connection ────────────────────────────────────────
+    btnScan.addEventListener('click', async () => {
+      try {
+        log('Scanning for Lovense devices…');
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'LVS-' }],
+          optionalServices: ALL_SERVICE_UUIDS,
+        });
+        device.addEventListener('gattserverdisconnected', onDisconnect);
+        log(`Found device: Lovense Toy`);
+        await connectDevice();
+      } catch (e) {
+        log(`Scan failed: ${e.message}`, true);
+      }
+    });
+
+    async function connectDevice() {
+      try {
+        server = await device.gatt.connect();
+        log('GATT connected, discovering services…');
+
+        // Try known service variants
+        for (const { service, tx, rx } of SERVICES) {
+          try {
+            log(`Trying service: ${service.substring(0, 8)}…`);
+            const svc = await server.getPrimaryService(service);
+            txChar = await svc.getCharacteristic(tx);
+            rxChar = await svc.getCharacteristic(rx);
+            log(`Matched service: ${service.substring(0, 8)}… ✓`);
+            break;
+          } catch (e) { }
+        }
+
+        // Fallback: discover all services and find writable characteristic
+        if (!txChar) {
+          log('Known UUIDs not matched, enumerating all services…');
+          try {
+            const services = await server.getPrimaryServices();
+            for (const svc of services) {
+              log(`Found service: ${svc.uuid}`);
+              const chars = await svc.getCharacteristics();
+              for (const c of chars) {
+                const props = c.properties;
+                log(`  Char: ${c.uuid} [${props.write ? 'W' : ''}${props.writeWithoutResponse ? 'w' : ''}${props.notify ? 'N' : ''}${props.read ? 'R' : ''}]`);
+                if ((props.write || props.writeWithoutResponse) && !txChar) txChar = c;
+                if (props.notify && !rxChar) rxChar = c;
+              }
+              if (txChar && rxChar) break;
+            }
+          } catch (e) {
+            log(`Service enumeration failed: ${e.message}`, true);
+          }
+        }
+
+        if (!txChar) throw new Error('No compatible Lovense service found (no writable characteristic)');
+
+        rxChar.addEventListener('characteristicvaluechanged', onRxData);
+        await rxChar.startNotifications();
+
+        connected = true;
+        updateUI();
+        log('Connected ✓');
+
+        // Query device info
+        await send('Battery;');
+      } catch (e) {
+        log(`Connection failed: ${e.message}`, true);
+      }
+    }
+
+    function onDisconnect() {
+      connected = false;
+      txChar = rxChar = null;
+      updateUI();
+      log('Device disconnected');
+    }
+
+    btnDisconnect.addEventListener('click', async () => {
+      stopPattern();
+      try { await send('Vibrate:0;'); } catch { }
+      device?.gatt?.disconnect();
+    });
+
+    // ── Data ──────────────────────────────────────────────
+    function onRxData(event) {
+      const msg = new TextDecoder().decode(event.target.value);
+      log(`← ${msg}`);
+      // Parse battery
+      const bat = msg.match(/^(\d+)$/);
+      if (bat) batteryText.textContent = `🔋 ${bat[1]}%`;
+    }
+
+    async function send(cmd) {
+      if (!txChar) return;
+      return enqueueCmd(cmd);
+    }
+
+    // ── Sliders (throttled to 100 ms) ─────────────────────
+    const sendVibrate = throttle(v => send(`Vibrate:${v};`), CMD_MIN_INTERVAL);
+
+    vibSlider.addEventListener('input', () => {
+      vibVal.textContent = vibSlider.value;
+      sendVibrate(vibSlider.value);
+    });
+
+    // ── Presets ───────────────────────────────────────────
+    function stopPattern() {
+      if (patternTimer) { clearInterval(patternTimer); patternTimer = null; }
+    }
+
+    async function preset(name) {
+      stopPattern();
+      switch (name) {
+        case 'low':
+          vibSlider.value = 5; vibVal.textContent = '5';
+          await send('Vibrate:5;');
+          break;
+        case 'medium':
+          vibSlider.value = 12; vibVal.textContent = '12';
+          await send('Vibrate:12;');
+          break;
+        case 'high':
+          vibSlider.value = 20; vibVal.textContent = '20';
+          await send('Vibrate:20;');
+          break;
+        case 'pulse': {
+          let on = true;
+          patternTimer = setInterval(async () => {
+            const lv = on ? 15 : 0;
+            vibSlider.value = lv; vibVal.textContent = lv;
+            await send(`Vibrate:${lv};`);
+            on = !on;
+          }, 600); // 600 ms > 100 ms minimum
+          break;
+        }
+        case 'ramp': {
+          let lv = 0;
+          patternTimer = setInterval(async () => {
+            lv = lv >= 20 ? 0 : lv + 1;
+            vibSlider.value = lv; vibVal.textContent = lv;
+            await send(`Vibrate:${lv};`);
+          }, 150); // 150 ms > 100 ms minimum
+          break;
+        }
+        case 'stop':
+          vibSlider.value = 0; vibVal.textContent = '0';
+          await send('Vibrate:0;');
+          break;
+      }
+    }
+
+    // ── UI Update ─────────────────────────────────────────
+    function updateUI() {
+      statusDot.classList.toggle('connected', connected);
+      statusText.textContent = connected ? 'Lovense Toy' : 'Disconnected';
+      btnScan.disabled = connected;
+      btnDisconnect.disabled = !connected;
+      controlPanel.style.display = connected ? '' : 'none';
+      presetsPanel.style.display = connected ? '' : 'none';
+      if (!connected) batteryText.textContent = '';
+    }
+
+    // ── Init ──────────────────────────────────────────────
+    if (!navigator.bluetooth) {
+      log('Web Bluetooth API not supported. Please use Chrome/Edge.', true);
+      btnScan.disabled = true;
+    }
+  </script>
+</body>
+
+</html>
